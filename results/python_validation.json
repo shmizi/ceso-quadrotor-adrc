@@ -1,0 +1,41 @@
+{
+  "ceso": {
+    "python_reference_metrics": {
+      "position_rmse_m": 0.03527861636107486,
+      "peak_position_error_m": 0.12635739544619667,
+      "attitude_rmse_deg": 0.9204754552516736,
+      "rotor_thrust_variation_N": 554.2023222212065,
+      "rotor_effort_N2s": 4575.922581452277,
+      "saturated_sample_percent": 0.0
+    },
+    "parity_horizon_s": 30.0,
+    "matlab_python_max_all_column_difference": 1.1036949132403606e-11,
+    "matlab_python_max_position_difference_m": 4.296563105299356e-14
+  },
+  "tanh": {
+    "python_reference_metrics": {
+      "position_rmse_m": 0.1398088644688345,
+      "peak_position_error_m": 0.2292494583988505,
+      "attitude_rmse_deg": 0.8580892170253771,
+      "rotor_thrust_variation_N": 702.0022758169443,
+      "rotor_effort_N2s": 4571.472443557394,
+      "saturated_sample_percent": 0.0
+    },
+    "parity_horizon_s": 30.0,
+    "matlab_python_max_all_column_difference": 7.155165349104209e-12,
+    "matlab_python_max_position_difference_m": 1.4210854715202004e-14
+  },
+  "td3": {
+    "python_reference_metrics": {
+      "position_rmse_m": 0.14185154362270855,
+      "peak_position_error_m": 0.22058525639987914,
+      "attitude_rmse_deg": 0.6852909468441258,
+      "rotor_thrust_variation_N": 647.2546781776937,
+      "rotor_effort_N2s": 4571.0439762471915,
+      "saturated_sample_percent": 0.0
+    },
+    "parity_horizon_s": 5.0,
+    "matlab_python_max_all_column_difference": 5.640004907547791e-09,
+    "matlab_python_max_position_difference_m": 1.1869755178750552e-11
+  }
+}

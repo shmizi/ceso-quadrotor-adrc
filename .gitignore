@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+~$*
+results/*.mat
+results/matlab_*_*.csv
+results/matlab_*_*.png
+results/python_*.csv
