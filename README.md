@@ -105,6 +105,74 @@ identified and fixed in the `improved` variant (the default):
 A smaller gain-change penalty (0.002 instead of 0.01) was also tried. It tied
 fixed gains on reward but flew worse, so it was not kept.
 
+### What each CESO setting actually does
+
+`python/sensitivity.py` changes one CESO setting at a time and flies each value
+80 times: four paths, mismatch on and off, ten noise seeds. All 4080 flights
+finished without a crash. These figures average over paths and mismatch, so the
+baseline differs slightly from the figure-eight table above.
+
+![CESO sensitivity](results/sensitivity.png)
+
+| Change from `config.json` | Position RMSE (m) | Peak position error (m) | Attitude RMSE (deg) | Rotor thrust variation (N) |
+|---|---:|---:|---:|---:|
+| None | 0.038 | 0.119 | 0.874 | 516 |
+| Attitude ωc 7 → 3 | 0.039 | 0.126 | 0.843 | 335 |
+| Attitude ωc 7 → 28 | 0.038 | 0.119 | 0.655 | 1708 |
+| Attitude ω₀ 36 → 24 | 0.038 | 0.122 | 1.306 | 296 |
+| Attitude ω₀ 36 → 48 | 0.038 | 0.119 | 0.656 | 837 |
+| Position ω₀ 10 → 14 | 0.022 | 0.078 | 1.846 | 1094 |
+| Position ω₀ 10 → 20 | 0.077 | 0.198 | 3.887 | 2437 |
+| Position ωc 1.5 → 3 | 0.024 | 0.079 | 3.453 | 1254 |
+| Cascade ratio 2 → 1.25 | 0.025 | 0.081 | 1.153 | 1007 |
+| Cascade ratio 2 → 3 | 0.056 | 0.170 | 0.692 | 304 |
+
+- **Attitude ωc is the weakest setting.** From 3 to 28 rad/s, position RMSE stays
+  within 0.0379–0.0385 m. Lowering it from 7 to 3 cuts rotor variation by 35 % for
+  6 % more peak error. To reach 0.66° of attitude error, ωc = 28 needs twice the
+  rotor variation of ω₀ = 48.
+- **Position ω₀ has a limit.** Raising it to 14 cuts position RMSE by 41 %, but at
+  20 position RMSE is already twice the baseline.
+- **Position ω₀ beats position ωc.** Position ω₀ = 14 beats position ωc = 3 on all
+  four metrics.
+- **The cascade ratio is a cheap way to gain position accuracy.** Compared with
+  position ω₀ = 14, a ratio of 1.25 gives 12 % more position error but 38 % less
+  attitude error, with 8 % less rotor variation.
+
+**Where the errors come from.** Each row removes one input from the same flights:
+
+| Removed | Position RMSE (m) | Attitude RMSE (deg) | Rotor thrust variation (N) |
+|---|---:|---:|---:|
+| Nothing | 0.038 | 0.874 | 516 |
+| Position noise | 0.038 | 0.320 | 334 |
+| Attitude noise | 0.038 | 0.874 | 390 |
+| All noise | 0.038 | 0.314 | 32 |
+| Gusts | 0.017 | 0.810 | 477 |
+| Noise and gusts | 0.016 | 0.027 | 9 |
+
+Position error comes mainly from the gusts, and noise barely changes it. Attitude
+error comes mainly from position noise: the attitude command is computed from the
+position loop, so that noise reaches the command the attitude loop is scored
+against. Attitude noise has almost no effect on attitude error, but it does add
+rotor activity. Noise accounts for 94 % of rotor variation.
+
+**Would a gust-aware schedule help?** Before training a TD3 agent to schedule CESO's
+observer bandwidths, a schedule was given the exact gust times as an upper-bound
+test. Compared with the fixed setting closest in position error:
+
+| Position ω₀ scale | Attitude ω₀ scale | Position RMSE (m) | Peak position error (m) | Attitude RMSE (deg) | Rotor thrust variation (N) |
+|---|---|---:|---:|---:|---:|
+| 0.91, fixed | 1, fixed | 0.046 | 0.140 | 0.705 | 448 |
+| 0.79 in calm air, 1 in gusts | 1, fixed | 0.045 | 0.126 | 0.688 | 448 |
+| 0.79 in calm air, 1 in gusts | 1 in calm air, 1.26 in gusts | 0.045 | 0.126 | 0.583 | 536 |
+
+Perfect gust timing lowers peak error by about 10 % and changes little else; raising
+attitude ω₀ during gusts as well trades 20 % more rotor variation for 17 % less
+attitude error. That gain was too small to justify a learned schedule, so a TD3-tuned
+CESO was not trained. This tested two-level schedules on this one gust pattern, so it
+does not rule out a benefit from other schedules or from stronger, less predictable
+gusts.
+
 ## How it works
 
 ### Plant
@@ -268,6 +336,13 @@ in `policies/`:
 python python/td3_train.py --variant improved
 ```
 
+Run the CESO sensitivity study. This took about 110 minutes on 14 processes and
+overwrites `results/sensitivity.csv`; `plot_sensitivity` in MATLAB draws the figure:
+
+```bash
+python python/sensitivity.py
+```
+
 Inside the `python` folder, the simulator can also be used as a library:
 
 ```python
@@ -339,10 +414,12 @@ matlab/
   quad_export.m                 CSV export
   quad_capture.m                Dashboard screenshot
   plot_td3_training.m           TD3 learning curve
+  plot_sensitivity.m            CESO sensitivity figure
 python/
   simulate.py                   Command line: fly one case
   td3_train.py                  TD3 training loop and reward
   validate_reference.py         Unit checks and MATLAB/Python parity
+  sensitivity.py                CESO gain sweeps, error sources and gust schedules
   quadsim/
     config.py                   Config loading and constants
     maths.py                    Rotations, Euler angles, mixer, matrix exponential
@@ -364,6 +441,9 @@ results/                        Figures, metrics and training logs
   itself uses quaternions.
 - No controller went through a systematic tuning study, and none of these numbers
   are performance claims from either paper.
+- The sensitivity study covers CESO only and changes one setting at a time, so it
+  misses interactions between settings. Its seeds vary the sensor noise only; every
+  flight has the same gusts.
 - tanh-ADRC has no reference-acceleration feedforward by default.
 - Flights start airborne; takeoff and landing are not modelled.
 - This is a numerical comparison, not a stability proof for the full saturated
